@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Trophy, Medal, Star, BookA, UserStar, Award, Lock, Unlock, Check, X } from 'lucide-react';
 import schoolLogo from './gambar/SM_Sains_Sultan_Mohamad_Jiwa_logo.png';
+import { db } from './firebase';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 
 const HOUSES = ['Panglima', 'Temenggung', 'Laksamana', 'Bendahara'];
 
@@ -52,18 +54,20 @@ export default function RumahSukanDashboard() {
   const [editValue, setEditValue] = useState('');
   const inputRef = useRef(null);
 
-  const [rawScores, setRawScores] = useState(() => {
-    try {
-      const saved = localStorage.getItem('rumahSukanScores');
-      return saved ? JSON.parse(saved) : DEFAULT_RAW_SCORES;
-    } catch {
-      return DEFAULT_RAW_SCORES;
-    }
-  });
+  const [rawScores, setRawScores] = useState(DEFAULT_RAW_SCORES);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    localStorage.setItem('rumahSukanScores', JSON.stringify(rawScores));
-  }, [rawScores]);
+    const unsub = onSnapshot(doc(db, 'scores', 'rawScores'), (snap) => {
+      if (snap.exists()) {
+        setRawScores(snap.data());
+      } else {
+        setDoc(doc(db, 'scores', 'rawScores'), DEFAULT_RAW_SCORES);
+      }
+      setLoading(false);
+    });
+    return unsub;
+  }, []);
 
   useEffect(() => {
     if (editingCell && inputRef.current) inputRef.current.focus();
@@ -100,17 +104,18 @@ export default function RumahSukanDashboard() {
     setEditValue(String(rawScores[category][houseName] ?? 0));
   };
 
-  const commitEdit = () => {
+  const commitEdit = async () => {
     if (!editingCell) return;
     const val = parseInt(editValue, 10);
     if (!isNaN(val) && val >= 0) {
-      setRawScores(prev => ({
-        ...prev,
+      const newScores = {
+        ...rawScores,
         [editingCell.category]: {
-          ...prev[editingCell.category],
+          ...rawScores[editingCell.category],
           [editingCell.houseName]: val
         }
-      }));
+      };
+      await setDoc(doc(db, 'scores', 'rawScores'), newScores);
     }
     setEditingCell(null);
   };
@@ -139,6 +144,21 @@ export default function RumahSukanDashboard() {
     { id: 'kokorikulum', label: 'Kokorikulum', icon: <Medal className="w-4 h-4" /> },
     { id: 'akademik', label: 'Akademik', icon: <BookA className="w-4 h-4" /> }
   ];
+
+  if (loading) return (
+    <div style={{
+      background: 'linear-gradient(135deg, #1F2937 0%, #111827 100%)',
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: '#9CA3AF',
+      fontSize: '18px',
+      fontFamily: "'Segoe UI', sans-serif"
+    }}>
+      Memuatkan data...
+    </div>
+  );
 
   return (
     <div style={{
