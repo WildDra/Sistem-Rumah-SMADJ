@@ -156,7 +156,7 @@ export default function RumahSukanDashboard() {
       fontSize: '18px',
       fontFamily: "'Segoe UI', sans-serif"
     }}>
-      Memuatkan data...
+      Page loading...
     </div>
   );
 
